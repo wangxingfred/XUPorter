@@ -255,6 +255,19 @@ namespace UnityEditor.XCodeEditor
 			return modified;	
 		}
 
+		public bool AddOtherLinkerFlagsWithForceLoad(string absoluteFilePath){
+			if (!File.Exists(absoluteFilePath)) {
+				return false;
+			}
+
+			AddOtherLinkerFlags ("-force_load");
+			System.Uri fileURI = new System.Uri( absoluteFilePath );
+			System.Uri rootURI = new System.Uri( ( projectRootPath + "/." ) );
+			string relativeFilePath = rootURI.MakeRelativeUri( fileURI ).ToString();
+
+			return AddOtherLinkerFlags (relativeFilePath);
+		}
+
 		public bool AddOtherLinkerFlags( string flag )
 		{
 			return AddOtherLinkerFlags( new PBXList( flag ) ); 
@@ -394,7 +407,7 @@ namespace UnityEditor.XCodeEditor
 							BuildAddFile(fileReference,currentObject,weak);
 						}
 						if ( !string.IsNullOrEmpty( absPath ) && ( tree.CompareTo( "SOURCE_ROOT" ) == 0 )) {
-							string libraryPath = Path.Combine( "$(SRCROOT)", Path.GetDirectoryName( filePath ) );
+							string libraryPath = PathCombine2Unix( "$(SRCROOT)/", Path.GetDirectoryName( filePath ) );
 							if (File.Exists(absPath)) {
 								this.AddLibrarySearchPaths( new PBXList( libraryPath ) ); 
 							} else {
@@ -713,7 +726,7 @@ namespace UnityEditor.XCodeEditor
 			Debug.Log( "Adding libraries..." );
 			
 			foreach( XCModFile libRef in mod.libs ) {
-				string completeLibPath = System.IO.Path.Combine( "usr/lib", libRef.filePath );
+				string completeLibPath = PathCombine2Unix( "usr/lib/", libRef.filePath );
 				Debug.Log ("Adding library " + completeLibPath);
 				this.AddFile( completeLibPath, modGroup, "SDKROOT", true, libRef.isWeak );
 			}
@@ -723,14 +736,15 @@ namespace UnityEditor.XCodeEditor
 			foreach( string framework in mod.frameworks ) {
 				string[] filename = framework.Split( ':' );
 				bool isWeak = ( filename.Length > 1 ) ? true : false;
-				string completePath = System.IO.Path.Combine( "System/Library/Frameworks", filename[0] );
+				string completePath = PathCombine2Unix( "System/Library/Frameworks/", filename[0] );
 				this.AddFile( completePath, frameworkGroup, "SDKROOT", true, isWeak );
 			}
 
 			Debug.Log( "Adding files..." );
 			foreach( string filePath in mod.files ) {
-				string absoluteFilePath = System.IO.Path.Combine( mod.path, filePath );
-				this.AddFile( absoluteFilePath, modGroup );
+				string absoluteFilePath = Path.Combine( mod.path, filePath );
+
+                this.AddFile( absoluteFilePath, modGroup );
 			}
 
 			Debug.Log( "Adding embed binaries..." );
@@ -741,14 +755,14 @@ namespace UnityEditor.XCodeEditor
 				this.overwriteBuildSetting("LD_RUNPATH_SEARCH_PATHS", "$(inherited) @executable_path/Frameworks", "Debug");
 
 				foreach( string binary in mod.embed_binaries ) {
-					string absoluteFilePath = System.IO.Path.Combine( mod.path, binary );
+					string absoluteFilePath = Path.Combine( mod.path, binary );
 					this.AddEmbedFramework(absoluteFilePath);
 				}
 			}
 			
 			Debug.Log( "Adding folders..." );
 			foreach( string folderPath in mod.folders ) {
-				string absoluteFolderPath = System.IO.Path.Combine( Application.dataPath, folderPath );
+				string absoluteFolderPath = Path.Combine( Application.dataPath, folderPath );
 				Debug.Log ("Adding folder " + absoluteFolderPath);
 				this.AddFolder( absoluteFolderPath, modGroup, (string[])mod.excludes.ToArray( typeof(string) ) );
 			}
@@ -759,7 +773,7 @@ namespace UnityEditor.XCodeEditor
 					Debug.Log ("not prepending a path to " + headerpath);
 					this.AddHeaderSearchPaths( headerpath );
 				} else {
-					string absoluteHeaderPath = System.IO.Path.Combine( mod.path, headerpath );
+					string absoluteHeaderPath = Path.Combine( mod.path, headerpath );
 					this.AddHeaderSearchPaths( absoluteHeaderPath );
 				}
 			}
@@ -814,7 +828,7 @@ namespace UnityEditor.XCodeEditor
 				File.Delete( backupPath );
 			
 			// Backup original pbxproj file first
-			File.Copy( System.IO.Path.Combine( this.filePath, "project.pbxproj" ), backupPath );
+			File.Copy( Path.Combine( this.filePath, "project.pbxproj" ), backupPath );
 		}
 
 		private void DeleteExisting(string path)
@@ -870,5 +884,10 @@ namespace UnityEditor.XCodeEditor
    		{
    		
 	   	}
+
+        public string PathCombine2Unix(string path1, string path2)
+        {
+            return Path.Combine(path1, path2).Replace("\\", "/");
+        }
 	}
 }

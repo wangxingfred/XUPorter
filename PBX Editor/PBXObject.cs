@@ -114,9 +114,51 @@ namespace UnityEditor.XCodeEditor
 		/// </summary>
 		public override string ToString() {
 			return "{" + this.ToCSV() + "} ";
-		}	
-		#endregion
-	}
+		}
+
+        public bool Overwrite(string keyPath, string value)
+        {
+            string[] names = keyPath.Split('.');
+            PBXDictionary dict = _data;
+            for (int i = 0; i < names.Length - 1; ++i)
+            {
+                string name = names[i];
+
+                if (!dict.ContainsKey(name))
+                {
+                    var child = new PBXDictionary();
+                    dict.Add(name, child);
+                    dict = child;
+                }
+                else
+                {
+                    dict = dict[name] as PBXDictionary;
+                    if (dict == null)
+                    {
+                        var err = new System.Text.StringBuilder();
+                        err.Append("Failed to overwrite ");
+                        err.Append(keyPath);
+                        err.Append(", cause ");
+                        for (int j = 0; j < i; ++j)
+                        {
+                            err.Append(names[j]);
+                            err.Append(".");
+                        }
+                        err.Append(names[i]);
+                        err.Append(" is not dictionary!");
+                        UnityEngine.Debug.LogError(err.ToString());
+                        return false;
+                    }
+                }
+            }
+
+            string key = names[names.Length - 1];
+            dict[key] = value;
+            return true;
+        }
+
+        #endregion
+    }
 	
 	public class PBXNativeTarget : PBXObject
 	{

@@ -39,5 +39,50 @@ namespace UnityEditor.XCodeEditor
 
 			knownRegions.Add(region);
 		}
+
+        /// <summary>
+        /// overwrite XCode's 'General/Signing' option
+        /// </summary>
+        /// <param name="provisioningManual"></param>
+        /// <param name="developmentTeam"></param>
+        /// <returns></returns>
+        public bool OverwriteTargetAttrs(bool provisioningManual, string developmentTeam = "")
+        {
+            var attributes = data["attributes"] as PBXDictionary;
+            if (attributes == null)
+            {
+                Debug.LogError("Failed to Overwrite PBXProject attributes, case 'attributes' is not dictionary!");
+                return false;
+            }
+
+            var targetAttributes = attributes["TargetAttributes"] as PBXDictionary;
+            if (attributes == null)
+            {
+                Debug.LogError("Failed to Overwrite PBXProject attributes, case 'TargetAttributes' is not dictionary!");
+                return false;
+            }
+
+            foreach (var pair in targetAttributes)
+            {
+                var attrs = pair.Value as PBXDictionary;
+                if (attrs == null) continue;
+
+                if (!provisioningManual)
+                {
+                    attrs["ProvisioningStyle"] = "Automatic";
+                    attrs.Remove("DevelopmentTeam");
+                    Debug.Log(string.Format("Overwite target {0}'s 'ProvisioningStyle' to {1}", pair.Key, "Automatic"));
+                }
+                else
+                {
+                    attrs["ProvisioningStyle"] = "Manual";
+                    attrs["DevelopmentTeam"] = developmentTeam;
+                    Debug.Log(string.Format("Overwite target {0}'s 'ProvisioningStyle' to {1}, 'DevelopmentTeam' = {2}",
+                        pair.Key, "Manual", developmentTeam));
+                }
+            }
+
+            return true;
+        }
 	}
 }
